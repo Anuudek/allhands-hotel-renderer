@@ -1,7 +1,7 @@
 import { AvatarGuideStatus, IConnection, IMessageEvent, IRoomCreator, IRoomObjectController, IRoomObject, IVector3D, LegacyDataType, ObjectRolling, PetType, RoomObjectCategory, RoomObjectType, RoomObjectUserType, RoomObjectVariable } from '@nitrots/api';
 import { AreaHideMessageEvent, ConfInvisStateMessageEvent, DiceValueMessageEvent, FloorHeightMapEvent, FurnitureAliasesComposer, FurnitureAliasesEvent, FurnitureDataEvent, FurnitureFloorAddEvent, FurnitureFloorDataParser, FurnitureFloorEvent, FurnitureFloorRemoveEvent, FurnitureFloorUpdateEvent, FurnitureWallAddEvent, FurnitureWallDataParser, FurnitureWallEvent, FurnitureWallRemoveEvent, FurnitureWallUpdateEvent, GetCommunication, GetRoomEntryDataMessageComposer, GuideSessionEndedMessageEvent, GuideSessionErrorMessageEvent, GuideSessionStartedMessageEvent, IgnoreResultEvent, ItemDataUpdateMessageEvent, ObjectsDataUpdateEvent, ObjectsRollingEvent, OneWayDoorStatusMessageEvent, PetExperienceEvent, PetFigureUpdateEvent, RoomEntryTileMessageEvent, RoomEntryTileMessageParser, RoomHeightMapEvent, RoomHeightMapUpdateEvent, RoomPaintEvent, RoomReadyMessageEvent, RoomUnitChatEvent, RoomUnitChatShoutEvent, RoomUnitChatWhisperEvent, RoomUnitDanceEvent, RoomUnitEffectEvent, RoomUnitEvent, RoomUnitExpressionEvent, RoomUnitHabbiconEvent, RoomUnitHandItemEvent, RoomUnitIdleEvent, RoomUnitInfoEvent, RoomUnitNumberEvent, RoomUnitRemoveEvent, RoomUnitStatusEvent, RoomUnitStatusMessage, RoomUnitTypingEvent, RoomVisualizationSettingsEvent, UserInfoEvent, WiredFurniMoveStyleEvent, WiredFurniMovementData, WiredMovementsEvent, WiredUserDirectionUpdateData, WiredUserMovementData, YouArePlayingGameEvent } from '@nitrots/communication';
 import { GetRoomSessionManager, GetSessionDataManager } from '@nitrots/session';
-import { WiredFurniOpacityMessageEvent } from '@nitrots/communication';
+import { WiredFurniGravityMessageEvent, WiredFurniOpacityMessageEvent } from '@nitrots/communication';
 import { Vector3d } from '@nitrots/utils';
 import { FloorHeightMapMessageParser } from '@nitrots/communication';
 import { GetRoomEngine } from './GetRoomEngine';
@@ -84,6 +84,7 @@ export class RoomMessageHandler
             new OneWayDoorStatusMessageEvent(this.onOneWayDoorStatusMessageEvent.bind(this)),
             new AreaHideMessageEvent(this.onAreaHideMessageEvent.bind(this)),
             new WiredFurniOpacityMessageEvent(this.onWiredFurniOpacityMessageEvent.bind(this)),
+            new WiredFurniGravityMessageEvent(this.onWiredFurniGravityMessageEvent.bind(this)),
             new ConfInvisStateMessageEvent(this.onConfInvisStateMessageEvent.bind(this)),
             new RoomUnitDanceEvent(this.onRoomUnitDanceEvent.bind(this)),
             new RoomUnitEffectEvent(this.onRoomUnitEffectEvent.bind(this)),
@@ -570,7 +571,9 @@ export class RoomMessageHandler
                     new Vector3d(movement.rotation),
                     resolvedMovement.elapsed,
                     resolvedMovement.anchorObject,
-                    resolvedMovement.anchorOffset);
+                    resolvedMovement.anchorOffset,
+                    movement.animationEffect,
+                    movement.gravityIntensity);
             }
         }
 
@@ -1161,6 +1164,25 @@ export class RoomMessageHandler
         }
     }
 
+    private onWiredFurniGravityMessageEvent(event: WiredFurniGravityMessageEvent): void
+    {
+        if(!(event instanceof WiredFurniGravityMessageEvent) || !event.connection || !this._roomEngine) return;
+
+        const data = event.getParser().data;
+        if(!data) return;
+
+        const gravity = data.gravity > 0 ? 1 : 0;
+
+        for(const furniId of data.furniIds)
+        {
+            const floorObject = this._roomEngine.getRoomObject(this._currentRoomId, furniId, RoomObjectCategory.FLOOR) as IRoomObjectController;
+            const wallObject = this._roomEngine.getRoomObject(this._currentRoomId, furniId, RoomObjectCategory.WALL) as IRoomObjectController;
+
+            if(floorObject?.model) floorObject.model.setValue('wired_furni_gravity', gravity);
+            if(wallObject?.model) wallObject.model.setValue('wired_furni_gravity', gravity);
+        }
+    }
+
     private applyWiredFurniOpacity(object: IRoomObjectController, targetOpacity: number, clickThrough: boolean, easing: number, key: string): void
     {
         if(!object?.model) return;
@@ -1168,7 +1190,7 @@ export class RoomMessageHandler
         const activeFrame = this._wiredOpacityAnimationFrames.get(key);
         if(activeFrame !== undefined) cancelAnimationFrame(activeFrame);
 
-        object.model.setValue(RoomObjectVariable.FURNITURE_OPACITY_CLICK_THROUGH, clickThrough ? 1 : 0);
+        object.model.setValue(RoomObjectVariable.FURNITURE_WIRED_CLICK_THROUGH, clickThrough ? 1 : 0);
 
         const currentValue = object.model.getValue<number>(RoomObjectVariable.FURNITURE_ALPHA_MULTIPLIER);
         const initialOpacity = Number.isFinite(currentValue) ? currentValue : 1;
