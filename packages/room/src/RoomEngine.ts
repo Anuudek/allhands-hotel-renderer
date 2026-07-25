@@ -13,7 +13,7 @@ import { ImageResult } from './ImageResult';
 import { RoomInstance } from './RoomInstance';
 import { RoomObjectEventHandler } from './RoomObjectEventHandler';
 import { RoomVariableEnum } from './RoomVariableEnum';
-import { ObjectAvatarCarryObjectUpdateMessage, ObjectAvatarChatUpdateMessage, ObjectAvatarDanceUpdateMessage, ObjectAvatarEffectUpdateMessage, ObjectAvatarExperienceUpdateMessage, ObjectAvatarExpressionUpdateMessage, ObjectAvatarFigureUpdateMessage, ObjectAvatarFlatControlUpdateMessage, ObjectAvatarGestureUpdateMessage, ObjectAvatarGuideStatusUpdateMessage, ObjectAvatarMutedUpdateMessage, ObjectAvatarOwnMessage, ObjectAvatarPetGestureUpdateMessage, ObjectAvatarPlayerValueUpdateMessage, ObjectAvatarPlayingGameUpdateMessage, ObjectAvatarPostureUpdateMessage, ObjectAvatarSignUpdateMessage, ObjectAvatarSleepUpdateMessage, ObjectAvatarTypingUpdateMessage, ObjectAvatarUpdateMessage, ObjectAvatarUseObjectUpdateMessage, ObjectDataUpdateMessage, ObjectGroupBadgeUpdateMessage, ObjectHeightUpdateMessage, ObjectItemDataUpdateMessage, ObjectModelDataUpdateMessage, ObjectMoveUpdateMessage, ObjectRoomColorUpdateMessage, ObjectRoomFloorHoleUpdateMessage, ObjectRoomMaskUpdateMessage, ObjectRoomPlanePropertyUpdateMessage, ObjectRoomPlaneVisibilityUpdateMessage, ObjectRoomUpdateMessage, ObjectStateUpdateMessage, RoomObjectUpdateMessage } from './messages';
+import { ObjectAvatarCarryObjectUpdateMessage, ObjectAvatarChatUpdateMessage, ObjectAvatarDanceUpdateMessage, ObjectAvatarEffectUpdateMessage, ObjectAvatarExperienceUpdateMessage, ObjectAvatarExpressionUpdateMessage, ObjectAvatarFigureUpdateMessage, ObjectAvatarFlatControlUpdateMessage, ObjectAvatarGestureUpdateMessage, ObjectAvatarGuideStatusUpdateMessage, ObjectAvatarHabbiconUpdateMessage, ObjectAvatarMutedUpdateMessage, ObjectAvatarOwnMessage, ObjectAvatarPetGestureUpdateMessage, ObjectAvatarPlayerValueUpdateMessage, ObjectAvatarPlayingGameUpdateMessage, ObjectAvatarPostureUpdateMessage, ObjectAvatarSignUpdateMessage, ObjectAvatarSleepUpdateMessage, ObjectAvatarTypingUpdateMessage, ObjectAvatarUpdateMessage, ObjectAvatarUseObjectUpdateMessage, ObjectDataUpdateMessage, ObjectGroupBadgeUpdateMessage, ObjectHeightUpdateMessage, ObjectItemDataUpdateMessage, ObjectModelDataUpdateMessage, ObjectMoveUpdateMessage, ObjectRoomColorUpdateMessage, ObjectRoomFloorHoleUpdateMessage, ObjectRoomMaskUpdateMessage, ObjectRoomPlanePropertyUpdateMessage, ObjectRoomPlaneVisibilityUpdateMessage, ObjectRoomUpdateMessage, ObjectStateUpdateMessage, RoomObjectUpdateMessage } from './messages';
 import { RoomLogic, RoomMapData } from './object';
 import { RoomRenderer } from './renderer';
 import { RoomAreaSelectionManager, RoomCamera, RoomData, RoomEnterEffect, RoomFurnitureData, RoomGeometry, RoomInstanceData, RoomObjectBadgeImageAssetListener } from './utils';
@@ -1934,13 +1934,13 @@ export class RoomEngine implements IRoomEngine, IRoomCreator, IRoomEngineService
         if(roomOwnObject && roomOwnObject.logic && maskUpdate) roomOwnObject.logic.processUpdateMessage(maskUpdate);
     }
 
-    public rollRoomObjectFloor(roomId: number, objectId: number, location: IVector3D, targetLocation: IVector3D, duration: number = ObjectMoveUpdateMessage.DEFAULT_DURATION, direction: IVector3D = null, elapsed: number = 0, anchorObject: IRoomObjectController = null, anchorOffset: IVector3D = null): void
+    public rollRoomObjectFloor(roomId: number, objectId: number, location: IVector3D, targetLocation: IVector3D, duration: number = ObjectMoveUpdateMessage.DEFAULT_DURATION, direction: IVector3D = null, elapsed: number = 0, anchorObject: IRoomObjectController = null, anchorOffset: IVector3D = null, animationEffect: number = 0, gravityIntensity: number = 0): void
     {
         const object = this.getRoomObjectFloor(roomId, objectId);
 
         if(!object) return;
 
-        object.processUpdateMessage(new ObjectMoveUpdateMessage(location, targetLocation, direction, !!targetLocation, duration, elapsed, anchorObject, anchorOffset));
+        object.processUpdateMessage(new ObjectMoveUpdateMessage(location, targetLocation, direction, !!targetLocation, duration, elapsed, anchorObject, anchorOffset, animationEffect, gravityIntensity));
     }
 
     public updateRoomObjectWallLocation(roomId: number, objectId: number, location: IVector3D): boolean
@@ -2098,6 +2098,9 @@ export class RoomEngine implements IRoomEngine, IRoomCreator, IRoomEngineService
                 break;
             case RoomObjectVariable.FIGURE_GUIDE_STATUS:
                 message = new ObjectAvatarGuideStatusUpdateMessage(value);
+                break;
+            case RoomObjectVariable.FIGURE_HABBICON:
+                message = new ObjectAvatarHabbiconUpdateMessage(value);
                 break;
         }
 

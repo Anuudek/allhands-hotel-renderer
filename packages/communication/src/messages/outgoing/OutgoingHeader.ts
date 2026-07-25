@@ -301,6 +301,8 @@ export class OutgoingHeader
     public static WIRED_USER_VARIABLE_UPDATE = 10025;
     public static WIRED_USER_VARIABLE_MANAGE = 10026;
     public static WIRED_USER_INSPECT_MOVE = 10027;
+    public static WIRED_FURNI_RUNTIME_STATE_REQUEST = 10028;
+    public static WIRED_FEATURE_CAPABILITIES = 10029;
     public static TRANSLATION_LANGUAGES_REQUEST = 10032;
     public static TRANSLATION_TEXT_REQUEST = 10033;
     public static WIRED_OPEN = 768;
@@ -600,4 +602,29 @@ export class OutgoingHeader
     public static REQUEST_MESSENGER_HISTORY = 4901;
     public static SEND_MESSENGER_MESSAGE = 4902;
     public static MARK_MESSENGER_READ = 4903;
+    public static SNOWWAR_LOAD_STAGE_READY = 6000;
+    public static SNOWWAR_EXIT_GAME = 6001;
+    public static SNOWWAR_WALK = 6003;
+    public static SNOWWAR_THROW_AT_LOCATION = 6004;
+    public static SNOWWAR_THROW_AT_PLAYER = 6005;
+    public static SNOWWAR_CREATE_SNOWBALL = 6006;
+    public static SNOWWAR_REQUEST_FULL_GAME_STATUS = 6007;
+    public static SNOWWAR_PLAY_AGAIN = 6008;
+    public static SNOWWAR_GAME_CHAT = 6009;
+    public static SNOWWAR_EDIT_ROOM = 6010;
+    public static SNOWWAR_SAVE_EDITOR = 6011;
+    public static SNOWWAR_JOIN_QUEUE = 6012;
+    public static SNOWWAR_LEAVE_QUEUE = 6013;
+
+    // Hotel view landing scene (client -> server)
+    public static HOTEL_VIEW_LANDING_REQUEST = 9410;
+    public static HOTEL_VIEW_LANDING_SAVE = 9411;
+    public static HOTEL_VIEW_LANDING_SAVE_SCENE = 9412;
+    public static HOTEL_VIEW_LANDING_VOTE = 9413;
+    public static HOTEL_VIEW_LANDING_RESET_VOTES = 9414;
+    public static USER_SETTINGS_PRIVACY = 9415;
+    public static REQUEST_OFFLINE_MESSAGES = 9416;
+    // Use habbicon (client -> server). 9417 to match emulator RoomUserHabbiconEvent;
+    // 6010 is reserved by SnowWar EDIT_ROOM.
+    public static USE_HABBICON = 9417;
 }

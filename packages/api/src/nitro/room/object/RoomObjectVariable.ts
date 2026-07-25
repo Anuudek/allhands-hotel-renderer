@@ -34,6 +34,9 @@ export class RoomObjectVariable
     public static FIGURE_IS_PLAYING_GAME: string = 'figure_is_playing_game';
     public static FIGURE_GUIDE_STATUS: string = 'figure_guide_status';
     public static FIGURE_EXPRESSION: string = 'figure_expression';
+    public static FIGURE_HABBICON: string = 'figure_habbicon';
+    public static FIGURE_HABBICON_TRIGGER_SEQUENCE: string = 'figure_habbicon_trigger_sequence';
+    public static FIGURE_HABBICON_SPIN_OFFSET: string = 'figure_habbicon_spin_offset';
     public static HEAD_DIRECTION: string = 'head_direction';
     public static FURNITURE_CUSTOM_VARIABLES: string = 'furniture_custom_variables';
     public static FURNITURE_AUTOMATIC_STATE_INDEX: string = 'furniture_automatic_state_index';
@@ -81,6 +84,10 @@ export class RoomObjectVariable
     public static FURNITURE_BADGE_ASSET_NAME: string = 'furniture_badge_asset_name';
     public static FURNITURE_BADGE_VISIBLE_IN_STATE: string = 'furniture_badge_visible_in_state';
     public static FURNITURE_ALPHA_MULTIPLIER: string = 'furniture_alpha_multiplier';
+    public static FURNITURE_MOVE_STYLE: string = 'furniture_move_style';
+    public static FURNITURE_MOVE_STYLE_INTENSITY: string = 'furniture_move_style_intensity';
+    public static FURNITURE_WIRED_OPACITY: string = 'furniture_wired_opacity';
+    public static FURNITURE_WIRED_CLICK_THROUGH: string = 'furniture_wired_click_through';
     public static FURNITURE_CONF_INVIS_HIDDEN: string = 'furniture_conf_invis_hidden';
     public static FURNITURE_AREA_HIDE_HIDDEN: string = 'furniture_area_hide_hidden';
     public static FURNITURE_USAGE_POLICY: string = 'furniture_usage_policy';

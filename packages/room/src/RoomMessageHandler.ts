@@ -1,6 +1,7 @@
 import { AvatarGuideStatus, IConnection, IMessageEvent, IRoomCreator, IRoomObjectController, IRoomObject, IVector3D, LegacyDataType, ObjectRolling, PetType, RoomObjectCategory, RoomObjectType, RoomObjectUserType, RoomObjectVariable } from '@nitrots/api';
-import { AreaHideMessageEvent, ConfInvisStateMessageEvent, DiceValueMessageEvent, FloorHeightMapEvent, FurnitureAliasesComposer, FurnitureAliasesEvent, FurnitureDataEvent, FurnitureFloorAddEvent, FurnitureFloorDataParser, FurnitureFloorEvent, FurnitureFloorRemoveEvent, FurnitureFloorUpdateEvent, FurnitureWallAddEvent, FurnitureWallDataParser, FurnitureWallEvent, FurnitureWallRemoveEvent, FurnitureWallUpdateEvent, GetCommunication, GetRoomEntryDataMessageComposer, GuideSessionEndedMessageEvent, GuideSessionErrorMessageEvent, GuideSessionStartedMessageEvent, IgnoreResultEvent, ItemDataUpdateMessageEvent, ObjectsDataUpdateEvent, ObjectsRollingEvent, OneWayDoorStatusMessageEvent, PetExperienceEvent, PetFigureUpdateEvent, RoomEntryTileMessageEvent, RoomEntryTileMessageParser, RoomHeightMapEvent, RoomHeightMapUpdateEvent, RoomPaintEvent, RoomReadyMessageEvent, RoomUnitChatEvent, RoomUnitChatShoutEvent, RoomUnitChatWhisperEvent, RoomUnitDanceEvent, RoomUnitEffectEvent, RoomUnitEvent, RoomUnitExpressionEvent, RoomUnitHandItemEvent, RoomUnitIdleEvent, RoomUnitInfoEvent, RoomUnitNumberEvent, RoomUnitRemoveEvent, RoomUnitStatusEvent, RoomUnitStatusMessage, RoomUnitTypingEvent, RoomVisualizationSettingsEvent, UserInfoEvent, WiredFurniMovementData, WiredMovementsEvent, WiredUserDirectionUpdateData, WiredUserMovementData, YouArePlayingGameEvent } from '@nitrots/communication';
+import { AreaHideMessageEvent, ConfInvisStateMessageEvent, DiceValueMessageEvent, FloorHeightMapEvent, FurnitureAliasesComposer, FurnitureAliasesEvent, FurnitureDataEvent, FurnitureFloorAddEvent, FurnitureFloorDataParser, FurnitureFloorEvent, FurnitureFloorRemoveEvent, FurnitureFloorUpdateEvent, FurnitureWallAddEvent, FurnitureWallDataParser, FurnitureWallEvent, FurnitureWallRemoveEvent, FurnitureWallUpdateEvent, GetCommunication, GetRoomEntryDataMessageComposer, GuideSessionEndedMessageEvent, GuideSessionErrorMessageEvent, GuideSessionStartedMessageEvent, IgnoreResultEvent, ItemDataUpdateMessageEvent, ObjectsDataUpdateEvent, ObjectsRollingEvent, OneWayDoorStatusMessageEvent, PetExperienceEvent, PetFigureUpdateEvent, RoomEntryTileMessageEvent, RoomEntryTileMessageParser, RoomHeightMapEvent, RoomHeightMapUpdateEvent, RoomPaintEvent, RoomReadyMessageEvent, RoomUnitChatEvent, RoomUnitChatShoutEvent, RoomUnitChatWhisperEvent, RoomUnitDanceEvent, RoomUnitEffectEvent, RoomUnitEvent, RoomUnitExpressionEvent, RoomUnitHabbiconEvent, RoomUnitHandItemEvent, RoomUnitIdleEvent, RoomUnitInfoEvent, RoomUnitNumberEvent, RoomUnitRemoveEvent, RoomUnitStatusEvent, RoomUnitStatusMessage, RoomUnitTypingEvent, RoomVisualizationSettingsEvent, UserInfoEvent, WiredFurniMoveStyleEvent, WiredFurniMovementData, WiredMovementsEvent, WiredUserDirectionUpdateData, WiredUserMovementData, YouArePlayingGameEvent } from '@nitrots/communication';
 import { GetRoomSessionManager, GetSessionDataManager } from '@nitrots/session';
+import { WiredFurniGravityMessageEvent, WiredFurniOpacityMessageEvent } from '@nitrots/communication';
 import { Vector3d } from '@nitrots/utils';
 import { FloorHeightMapMessageParser } from '@nitrots/communication';
 import { GetRoomEngine } from './GetRoomEngine';
@@ -42,6 +43,7 @@ export class RoomMessageHandler
     private _confInvisReapplyTimeouts: ReturnType<typeof setTimeout>[] = [];
     private _activeAreaHideControllers = new Map<number, AreaHideControllerState>();
     private _areaHideReapplyTimeouts: ReturnType<typeof setTimeout>[] = [];
+    private _wiredOpacityAnimationFrames = new Map<string, number>();
     private _isConfInvisControlActive = false;
 
     private _currentRoomId: number = 0;
@@ -66,6 +68,7 @@ export class RoomMessageHandler
             new RoomEntryTileMessageEvent(this.onRoomDoorEvent.bind(this)),
             new ObjectsRollingEvent(this.onRoomRollingEvent.bind(this)),
             new WiredMovementsEvent(this.onWiredMovementsEvent.bind(this)),
+            new WiredFurniMoveStyleEvent(this.onWiredFurniMoveStyleEvent.bind(this)),
             new ObjectsDataUpdateEvent(this.onObjectsDataUpdateEvent.bind(this)),
             new FurnitureAliasesEvent(this.onFurnitureAliasesEvent.bind(this)),
             new FurnitureFloorAddEvent(this.onFurnitureFloorAddEvent.bind(this)),
@@ -80,11 +83,14 @@ export class RoomMessageHandler
             new ItemDataUpdateMessageEvent(this.onItemDataUpdateMessageEvent.bind(this)),
             new OneWayDoorStatusMessageEvent(this.onOneWayDoorStatusMessageEvent.bind(this)),
             new AreaHideMessageEvent(this.onAreaHideMessageEvent.bind(this)),
+            new WiredFurniOpacityMessageEvent(this.onWiredFurniOpacityMessageEvent.bind(this)),
+            new WiredFurniGravityMessageEvent(this.onWiredFurniGravityMessageEvent.bind(this)),
             new ConfInvisStateMessageEvent(this.onConfInvisStateMessageEvent.bind(this)),
             new RoomUnitDanceEvent(this.onRoomUnitDanceEvent.bind(this)),
             new RoomUnitEffectEvent(this.onRoomUnitEffectEvent.bind(this)),
             new RoomUnitEvent(this.onRoomUnitEvent.bind(this)),
             new RoomUnitExpressionEvent(this.onRoomUnitExpressionEvent.bind(this)),
+            new RoomUnitHabbiconEvent(this.onRoomUnitHabbiconEvent.bind(this)),
             new RoomUnitHandItemEvent(this.onRoomUnitHandItemEvent.bind(this)),
             new RoomUnitIdleEvent(this.onRoomUnitIdleEvent.bind(this)),
             new RoomUnitInfoEvent(this.onRoomUnitInfoEvent.bind(this)),
@@ -113,6 +119,9 @@ export class RoomMessageHandler
 
     public dispose(): void
     {
+        for(const frame of this._wiredOpacityAnimationFrames.values()) cancelAnimationFrame(frame);
+        this._wiredOpacityAnimationFrames.clear();
+
         if(this._connection)
         {
             for(const event of this._messageEvents)
@@ -518,6 +527,25 @@ export class RoomMessageHandler
         }
     }
 
+    private onWiredFurniMoveStyleEvent(event: WiredFurniMoveStyleEvent): void
+    {
+        if(!(event instanceof WiredFurniMoveStyleEvent) || !event.connection || !this._roomEngine) return;
+
+        const parser = event.getParser();
+
+        if(!parser || !parser.itemIds.length) return;
+
+        for(const itemId of parser.itemIds)
+        {
+            const object = this._roomEngine.getRoomObject(this._currentRoomId, itemId, RoomObjectCategory.FLOOR);
+
+            if(!object || !object.model) continue;
+
+            object.model.setValue(RoomObjectVariable.FURNITURE_MOVE_STYLE, parser.style);
+            object.model.setValue(RoomObjectVariable.FURNITURE_MOVE_STYLE_INTENSITY, parser.intensity);
+        }
+    }
+
     private onWiredMovementsEvent(event: WiredMovementsEvent): void
     {
         if(!(event instanceof WiredMovementsEvent) || !event.connection || !this._roomEngine) return;
@@ -543,7 +571,9 @@ export class RoomMessageHandler
                     new Vector3d(movement.rotation),
                     resolvedMovement.elapsed,
                     resolvedMovement.anchorObject,
-                    resolvedMovement.anchorOffset);
+                    resolvedMovement.anchorOffset,
+                    movement.animationEffect,
+                    movement.gravityIntensity);
             }
         }
 
@@ -1115,6 +1145,96 @@ export class RoomMessageHandler
         this.scheduleAreaHideReapply(this._currentRoomId);
     }
 
+    private onWiredFurniOpacityMessageEvent(event: WiredFurniOpacityMessageEvent): void
+    {
+        if(!(event instanceof WiredFurniOpacityMessageEvent) || !event.connection || !this._roomEngine) return;
+
+        const data = event.getParser().data;
+        if(!data) return;
+
+        const opacity = Math.max(0, Math.min(100, data.opacity)) / 100;
+
+        for(const furniId of data.furniIds)
+        {
+            const floorObject = this._roomEngine.getRoomObject(this._currentRoomId, furniId, RoomObjectCategory.FLOOR) as IRoomObjectController;
+            const wallObject = this._roomEngine.getRoomObject(this._currentRoomId, furniId, RoomObjectCategory.WALL) as IRoomObjectController;
+
+            if(floorObject) this.applyWiredFurniOpacity(floorObject, opacity, data.clickThrough, data.easing, `floor:${furniId}`);
+            if(wallObject) this.applyWiredFurniOpacity(wallObject, opacity, data.clickThrough, data.easing, `wall:${furniId}`);
+        }
+    }
+
+    private onWiredFurniGravityMessageEvent(event: WiredFurniGravityMessageEvent): void
+    {
+        if(!(event instanceof WiredFurniGravityMessageEvent) || !event.connection || !this._roomEngine) return;
+
+        const data = event.getParser().data;
+        if(!data) return;
+
+        const gravity = data.gravity > 0 ? 1 : 0;
+
+        for(const furniId of data.furniIds)
+        {
+            const floorObject = this._roomEngine.getRoomObject(this._currentRoomId, furniId, RoomObjectCategory.FLOOR) as IRoomObjectController;
+            const wallObject = this._roomEngine.getRoomObject(this._currentRoomId, furniId, RoomObjectCategory.WALL) as IRoomObjectController;
+
+            if(floorObject?.model) floorObject.model.setValue('wired_furni_gravity', gravity);
+            if(wallObject?.model) wallObject.model.setValue('wired_furni_gravity', gravity);
+        }
+    }
+
+    private applyWiredFurniOpacity(object: IRoomObjectController, targetOpacity: number, clickThrough: boolean, easing: number, key: string): void
+    {
+        if(!object?.model) return;
+
+        const activeFrame = this._wiredOpacityAnimationFrames.get(key);
+        if(activeFrame !== undefined) cancelAnimationFrame(activeFrame);
+
+        object.model.setValue(RoomObjectVariable.FURNITURE_WIRED_CLICK_THROUGH, clickThrough ? 1 : 0);
+
+        const currentValue = object.model.getValue<number>(RoomObjectVariable.FURNITURE_ALPHA_MULTIPLIER);
+        const initialOpacity = Number.isFinite(currentValue) ? currentValue : 1;
+
+        if((easing === 0) || (initialOpacity === targetOpacity))
+        {
+            object.model.setValue(RoomObjectVariable.FURNITURE_ALPHA_MULTIPLIER, targetOpacity);
+            this._wiredOpacityAnimationFrames.delete(key);
+            return;
+        }
+
+        const startedAt = performance.now();
+        const duration = 400;
+        const applyFrame = (now: number) =>
+        {
+            const progress = Math.min(1, (now - startedAt) / duration);
+            const easedProgress = this.getWiredOpacityEasing(progress, easing);
+
+            object.model.setValue(RoomObjectVariable.FURNITURE_ALPHA_MULTIPLIER, initialOpacity + ((targetOpacity - initialOpacity) * easedProgress));
+
+            if(progress < 1)
+            {
+                this._wiredOpacityAnimationFrames.set(key, requestAnimationFrame(applyFrame));
+                return;
+            }
+
+            this._wiredOpacityAnimationFrames.delete(key);
+        };
+
+        this._wiredOpacityAnimationFrames.set(key, requestAnimationFrame(applyFrame));
+    }
+
+    private getWiredOpacityEasing(progress: number, easing: number): number
+    {
+        switch(easing)
+        {
+            case 1: return progress;
+            case 2: return progress * progress;
+            case 3: return 1 - ((1 - progress) * (1 - progress));
+            case 4: return progress < 0.5 ? (2 * progress * progress) : (1 - (Math.pow(-2 * progress + 2, 2) / 2));
+            default: return 1;
+        }
+    }
+
     private onDiceValueMessageEvent(event: DiceValueMessageEvent): void
     {
         if(!(event instanceof DiceValueMessageEvent) || !event.connection || !this._roomEngine) return;
@@ -1387,6 +1507,13 @@ export class RoomMessageHandler
         if(!(event instanceof RoomUnitExpressionEvent) || !event.connection || !this._roomEngine) return;
 
         this._roomEngine.updateRoomObjectUserAction(this._currentRoomId, event.getParser().unitId, RoomObjectVariable.FIGURE_EXPRESSION, event.getParser().expression);
+    }
+
+    private onRoomUnitHabbiconEvent(event: RoomUnitHabbiconEvent): void
+    {
+        if(!(event instanceof RoomUnitHabbiconEvent) || !event.connection || !this._roomEngine) return;
+
+        this._roomEngine.updateRoomObjectUserAction(this._currentRoomId, event.getParser().unitId, RoomObjectVariable.FIGURE_HABBICON, event.getParser().habbiconId);
     }
 
     private onRoomUnitHandItemEvent(event: RoomUnitHandItemEvent): void
