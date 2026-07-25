@@ -1,6 +1,23 @@
 import { IMessageDataWrapper, IMessageParser } from '@nitrots/api';
 
-export interface IWiredUserVariableDefinitionData
+export interface IWiredArrayFieldDefinitionData
+{
+    id: number;
+    name: string;
+    order: number;
+}
+
+export interface IWiredArrayVariableMetadata
+{
+    arrayFormat?: 'simple' | 'record';
+    arrayMode?: 'list' | 'slots';
+    fields?: IWiredArrayFieldDefinitionData[];
+    maxEntries?: number;
+    permanent?: boolean;
+    valueShape?: 'single' | 'array';
+}
+
+export interface IWiredUserVariableDefinitionData extends IWiredArrayVariableMetadata
 {
     availability: number;
     hasValue: boolean;
@@ -25,7 +42,7 @@ export interface IWiredUserVariablesUserData
     userId: number;
 }
 
-export interface IWiredFurniVariableDefinitionData
+export interface IWiredFurniVariableDefinitionData extends IWiredArrayVariableMetadata
 {
     availability: number;
     hasValue: boolean;
@@ -41,7 +58,7 @@ export interface IWiredUserVariablesFurniData
     furniId: number;
 }
 
-export interface IWiredRoomVariableDefinitionData
+export interface IWiredRoomVariableDefinitionData extends IWiredArrayVariableMetadata
 {
     availability: number;
     hasValue: boolean;
@@ -60,7 +77,7 @@ export interface IWiredRoomVariableAssignmentData
     variableItemId: number;
 }
 
-export interface IWiredContextVariableDefinitionData
+export interface IWiredContextVariableDefinitionData extends IWiredArrayVariableMetadata
 {
     availability: number;
     hasValue: boolean;
@@ -256,7 +273,48 @@ export class WiredUserVariablesDataParser implements IMessageParser
             totalContextDefinitions--;
         }
 
+        if(wrapper.bytesAvailable) this.mergeArrayMetadata(wrapper.readString());
+
         return true;
+    }
+
+    private mergeArrayMetadata(rawValue: string): void
+    {
+        try
+        {
+            const values = JSON.parse(rawValue);
+
+            if(!Array.isArray(values)) return;
+
+            for(const value of values)
+            {
+                if(!value || !Number.isInteger(value.itemId)) continue;
+
+                const definitions = value.variableType === 0
+                    ? this._furniDefinitions
+                    : value.variableType === 1
+                        ? this._roomDefinitions
+                        : value.variableType === 2
+                            ? this._definitions
+                            : value.variableType === 3
+                                ? this._contextDefinitions
+                                : null;
+                const definition = definitions?.find(current => current.itemId === value.itemId);
+
+                if(!definition) continue;
+
+                definition.valueShape = value.valueShape === 'array' ? 'array' : 'single';
+                definition.arrayFormat = value.arrayFormat === 'record' ? 'record' : 'simple';
+                definition.arrayMode = value.arrayMode === 'slots' ? 'slots' : 'list';
+                definition.maxEntries = Number.isInteger(value.maxEntries) ? value.maxEntries : 0;
+                definition.fields = Array.isArray(value.fields) ? value.fields : [];
+                definition.permanent = value.permanent === true;
+            }
+        }
+        catch
+        {
+            // Metadata is optional so legacy or malformed trailing data cannot break the base packet.
+        }
     }
 
     public get roomId(): number
