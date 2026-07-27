@@ -60,6 +60,18 @@ describe('WiredUserVariablesDataParser', () =>
         });
     });
 
+    it('marks a schema the server could not parse as unavailable instead of a scalar', () =>
+    {
+        const writer = basePacket();
+        writer.writeString(JSON.stringify([ { itemId: 42, variableType: 2, valueShape: 'array_unavailable', maxEntries: 0, fields: [] } ]));
+        const parser = new WiredUserVariablesDataParser();
+
+        expect(parser.parse(wrapper(writer))).toBe(true);
+        expect(parser.definitions[0].unavailable).toBe(true);
+        expect(parser.definitions[0].hasValue).toBe(false);
+        expect(parser.definitions[0].valueShape).toBeUndefined();
+    });
+
     it('keeps the legacy packet valid when optional metadata is absent or malformed', () =>
     {
         const legacy = new WiredUserVariablesDataParser();

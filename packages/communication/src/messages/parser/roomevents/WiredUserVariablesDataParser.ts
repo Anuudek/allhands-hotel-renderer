@@ -14,6 +14,8 @@ export interface IWiredArrayVariableMetadata
     fields?: IWiredArrayFieldDefinitionData[];
     maxEntries?: number;
     permanent?: boolean;
+    /** Set when the server reported a stored array schema it could not parse. */
+    unavailable?: boolean;
     valueShape?: 'single' | 'array';
 }
 
@@ -302,6 +304,15 @@ export class WiredUserVariablesDataParser implements IMessageParser
                 const definition = definitions?.find(current => current.itemId === value.itemId);
 
                 if(!definition) continue;
+
+                // A schema the server could not parse is neither a usable array nor a scalar, so it
+                // stays unselectable instead of being flattened into a scalar the editors would offer.
+                if(value.valueShape === 'array_unavailable')
+                {
+                    definition.hasValue = false;
+                    definition.unavailable = true;
+                    continue;
+                }
 
                 definition.valueShape = value.valueShape === 'array' ? 'array' : 'single';
                 definition.arrayFormat = value.arrayFormat === 'record' ? 'record' : 'simple';
