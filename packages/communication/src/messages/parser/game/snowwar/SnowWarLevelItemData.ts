@@ -8,6 +8,9 @@ export class SnowWarLevelItemData
     private _rotation: number;
     private _imageUrl: string;
     private _offsetZ: number;
+    private _walkableHeight: number;
+    private _width: number;
+    private _length: number;
 
     constructor(wrapper: IMessageDataWrapper)
     {
@@ -15,11 +18,11 @@ export class SnowWarLevelItemData
         this._x = wrapper.readInt();
         this._y = wrapper.readInt();
         this._rotation = wrapper.readInt();
-        // Optional room-ad image (empty for normal props) + its vertical
-        // backdrop offset. Trailing per-item fields, guarded by the item
-        // count (not bytesAvailable).
         this._imageUrl = wrapper.readString();
         this._offsetZ = wrapper.readInt();
+        this._walkableHeight = wrapper.readInt();
+        this._width = wrapper.readInt();
+        this._length = wrapper.readInt();
     }
 
     public get name(): string
@@ -50,5 +53,20 @@ export class SnowWarLevelItemData
     public get offsetZ(): number
     {
         return this._offsetZ;
+    }
+
+    public get walkableHeight(): number
+    {
+        return this._walkableHeight;
+    }
+
+    public get width(): number
+    {
+        return this._width;
+    }
+
+    public get length(): number
+    {
+        return this._length;
     }
 }
