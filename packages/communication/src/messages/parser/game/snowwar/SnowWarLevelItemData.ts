@@ -11,6 +11,8 @@ export class SnowWarLevelItemData
     private _walkableHeight: number;
     private _width: number;
     private _length: number;
+    private _state: number;
+    private _stateCount: number;
 
     constructor(wrapper: IMessageDataWrapper)
     {
@@ -23,6 +25,8 @@ export class SnowWarLevelItemData
         this._walkableHeight = wrapper.readInt();
         this._width = wrapper.readInt();
         this._length = wrapper.readInt();
+        this._state = wrapper.readInt();
+        this._stateCount = wrapper.readInt();
     }
 
     public get name(): string
@@ -69,4 +73,15 @@ export class SnowWarLevelItemData
     {
         return this._length;
     }
+
+    public get state(): number
+    {
+        return this._state;
+    }
+
+    public get stateCount(): number
+    {
+        return this._stateCount;
+    }
 }
+S
