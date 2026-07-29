@@ -1,124 +1,38 @@
-# Nitro Renderer
+# Allhands Hotel — Motor de Renderização
 
-nitro-renderer is a Javascript library for rendering Nitro in the browser using PixiJS
+Este repositório é o **motor de renderização** do projeto **Allhands Hotel**. É um fork do [Nitro Renderer](https://github.com/duckietm/Nitro_Render_V3), uma biblioteca em TypeScript que usa **PixiJS** para desenhar quartos, avatares, mobílias e efeitos no navegador, além de cuidar da comunicação via WebSocket com o servidor do jogo.
 
-## Installation
+## Sobre o projeto Allhands Hotel
 
-npm
+O Allhands Hotel é composto por 5 repositórios que trabalham juntos:
 
-```
-npm install @nitrots/nitro-renderer
-```
+| Repositório | Função |
+|---|---|
+| [`allhands-hotel-server`](https://github.com/Anuudek/allhands-hotel-server) | Servidor do jogo (Java / Polaris) |
+| [`allhands-hotel-client`](https://github.com/Anuudek/allhands-hotel-client) | Cliente do jogo (React / Nitro) |
+| [`allhands-hotel-renderer`](https://github.com/Anuudek/allhands-hotel-renderer) *(este)* | Motor de renderização do jogo (PixiJS) |
+| [`allhands-hotel-cms`](https://github.com/Anuudek/allhands-hotel-cms) | Site/CMS do hotel (Laravel / Atom CMS) |
+| [`allhands-hotel-converter`](https://github.com/Anuudek/allhands-hotel-converter) | Ferramenta que baixa e converte os assets oficiais do Habbo |
 
-yarn
+Este renderer **não roda sozinho**: ele é consumido diretamente pelo código-fonte do [`allhands-hotel-client`](https://github.com/Anuudek/allhands-hotel-client), que precisa tê-lo clonado como pasta **irmã** (`../allhands-hotel-renderer`) para resolver os módulos `@nitrots/*`.
 
-```
-yarn add @nitrots/nitro-renderer
-```
+## Stack
 
-## JSON / JSON5 configuration parser
+- **TypeScript** + **PixiJS 8**
+- **Vite** para build
+- **Vitest** para testes
+- Organizado em pacotes internos (`packages/*`) via Yarn Workspaces: `api`, `avatar`, `room`, `communication`, `session`, `sound`, `events`, entre outros
 
-Every configuration file and gamedata file loaded by the renderer (figuredata,
-furnidata, productdata, effectmap, avatar actions, etc.) goes through
-`@nitrots/utils` → `JsonParser.ts`. The parser supports three modes, selected at
-the **host build time** through the compile-time constant `__NITRO_JSON_MODE__`:
+## Rodando com Docker
 
-| Mode     | Behaviour                                                                 |
-|----------|---------------------------------------------------------------------------|
-| `legacy` | Strict `JSON.parse` only. Comments / trailing commas raise a clear error. |
-| `json5`  | `JSON5.parse` only. Accepts comments, trailing commas, single quotes.     |
-| `auto`   | Try strict JSON first, fall back to JSON5. Default when the flag is unset.|
+O `Dockerfile` deste repositório builda o renderer isoladamente e serve o resultado via nginx (usado, por exemplo, como bundle standalone acessível em `/renderer/`):
 
-URL hints are still honoured: files ending in `.json5` (or served with a
-`application/json5` content-type) always go through JSON5, regardless of mode.
-
-### Wiring the flag into a host
-
-The renderer does **not** ship its own build for the flag — the host application
-(typically [Nitro V3](https://github.com/duckietm/Nitro-V3.git)) defines it via
-its bundler. Example with Vite:
-
-```js
-// vite.config.mjs in the host
-export default defineConfig({
-    define: {
-        __NITRO_JSON_MODE__: JSON.stringify('json5')   // or 'legacy' / 'auto'
-    }
-});
+```bash
+docker build -t allhands-renderer .
 ```
 
-If the constant is not defined the parser falls back to `auto`, which preserves
-the original behaviour of older releases — so existing hosts keep working
-without any change.
+Quando usado junto com o cliente (`allhands-hotel-client`), o build do cliente inclui este repositório como dependência de código-fonte — não é necessário buildar este Dockerfile separadamente nesse caso.
 
-### Using the parser directly
+## Créditos
 
-```ts
-import { parseConfigJson, fetchConfigJson } from '@nitrots/utils';
-
-const data  = parseConfigJson<MyConfig>(rawText, '/configuration/ui-config.json');
-const data2 = await fetchConfigJson<MyConfig>('/configuration/ui-config.json5');
-```
-
-Errors carry the source URL and, in `legacy` mode, a hint about switching to
-JSON5 — making misconfigurations easy to diagnose in production logs.
-
-## Split-aware gamedata loader
-
-`@nitrots/utils` also exports `loadGamedata`, the loader that backs every
-gamedata consumer in the renderer (FurnitureDataLoader, ProductDataLoader,
-EffectAssetDownloadManager, AvatarRenderManager, LocalizationManager). It
-accepts either a **single-file URL** (legacy) or a **directory URL** (split
-mode) — detected automatically by the trailing slash.
-
-### Directory layout
-
-```
-<gamedata-dir>/
-  manifest.json5            # OPTIONAL — { "tiers": ["core", "custom", "seasonal"] }
-  core/
-    manifest.json5          # REQUIRED — { "files": ["a.json5", "b.json5", ...] }
-    a.json5
-    b.json5
-  custom/                   # OPTIONAL tier
-    manifest.json5
-    overrides.json5
-  seasonal/                 # OPTIONAL tier
-    manifest.json5
-    xmas.json5
-```
-
-If the directory `manifest.json5` is absent, the loader falls back to the
-default tier order `core → custom → seasonal`. Each tier is skipped silently
-if its `manifest.json5` is missing.
-
-### Merge semantics
-
-`mergeGamedata(a, b)` (also exported) implements the rules below; tiers and
-files within a tier are merged in order, with later layers overriding
-earlier ones:
-
-| Combination                              | Result                                       |
-|------------------------------------------|----------------------------------------------|
-| Two plain objects                        | recursive merge, key by key                  |
-| Two arrays of objects sharing an id key  | merged by id (later overrides earlier)       |
-| Two arrays without an id key             | concatenated                                 |
-| Anything else                            | later value wins                             |
-
-Recognised id keys (in priority order): `id`, `classname`, `name`. Pass
-`mergeArrayIdKeys` in the options object to extend or override them.
-
-### Programmatic usage
-
-```ts
-import { loadGamedata, mergeGamedata } from '@nitrots/utils';
-
-// host code never needs to care whether the URL is split or not
-const furnidata = await loadGamedata('https://example.com/gamedata/furnidata/');
-
-// merge ad-hoc if you load tiers manually
-const merged = mergeGamedata(coreData, customData);
-```
-
-A CLI splitter for legacy single-file gamedata lives in the Nitro V3 client
-repo at `scripts/split-gamedata.mjs` — see the Nitro V3 README for usage.
+Baseado no excelente trabalho do time do [Nitro Renderer](https://github.com/duckietm/Nitro_Render_V3). Este fork adapta o projeto para rodar em containers Docker como parte da infraestrutura do Allhands Hotel.
